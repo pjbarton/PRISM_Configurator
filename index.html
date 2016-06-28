@@ -36,11 +36,13 @@
 			<p style="color:#C0B0F0; font-size:150%">PRISM Detector Configurator</p>
 		</div>
 
-		<script src="three.min.js"></script>
-		<script src="PLYloader.js"></script>
-		<script src="Detector.js"></script>
-		<script src="stats.min.js"></script>
-		<script src="OrbitControls.js"></script>
+		<script src="js/three.min.js"></script>
+		<script src="js/PLYloader.js"></script>
+		<script src="js/Detector.js"></script>
+		<script src="js/stats.min.js"></script>
+		<script src="js/OrbitControls.js"></script>
+		<script src="js/dat.gui.min.js"></script>
+		js/
 		<script>
 			if ( ! Detector.webgl ) Detector.addGetWebGLMessage();
 			window.addEventListener( 'resize', onWindowResize, false );
@@ -93,7 +95,7 @@
 				
 				// PLY file
 				var loader = new THREE.PLYLoader();
-				loader.load( 'PRISM-1_0_quad.ply', function ( geometry ) {
+				loader.load( 'models/PRISM-1_0_quad.ply', function ( geometry ) {
 					geometry.computeFaceNormals();
 					var material = new THREE.MeshStandardMaterial;
 					var mesh = new THREE.Mesh( geometry, material );
