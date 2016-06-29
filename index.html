@@ -64,7 +64,8 @@
 				resetPosition: function() { 
 					controls.reset(); 
 				},
-				showAxes: false
+				showAxes: false,
+				bIndexColors: false
 			};
 
 			function loadPLY(mask){
@@ -72,22 +73,29 @@
 				loader.load( 'models/PRISM-1_0_quad.ply', function ( geometry ) {
 					
 					geometry.computeFaceNormals();
-					//geometry.dynamic = true;
-					//geometry.verticesNeedUpdate = true;
-					var material = new THREE.MeshStandardMaterial;
+
+					if (params.bIndexColors)
+						var material = new THREE.MeshBasicMaterial ({color:0xffffff, vertexColors:THREE.FaceColors});
+					else
+						var material = new THREE.MeshStandardMaterial;
 					mesh = new THREE.Mesh( geometry, material );
 					
 					var faceID = 0;
 					for (var i = mesh.geometry.faces.length - 12; i >= 0; i -= 12) {
-						if ( mask[faceID] == '0' ) {
-							mesh.geometry.faces.splice(-i,12);
+						if (params.bIndexColors) {
+							mesh.geometry.faces[i+0].color = new THREE.Color(Math.round(faceID) / 256, 0, 0);
+							mesh.geometry.faces[i+1].color = new THREE.Color(Math.round(faceID) / 256, 0, 0);
+							mesh.geometry.faces[i+2].color = new THREE.Color(0,Math.round(faceID) / 256, 0);
+							mesh.geometry.faces[i+3].color = new THREE.Color(0,Math.round(faceID) / 256, 0);
 						}
+						for (var j = 4; j < 12; j++)
+							mesh.geometry.faces[i+j].color = new THREE.Color(0,0,Math.round(faceID) / 256);
+						if ( mask[faceID] == '0' )
+							mesh.geometry.faces.splice(-i,12);
 						faceID++;
 					}
 
-					//mesh.geometry.faces.splice(0,12*192/2);
 					scene.add( mesh );
-
 				} );
 			}
 
@@ -170,10 +178,11 @@
 				f1.add(params, 'rotateSpeed',0.0,2).listen().onChange( valuesChanger ).step(0.01);
 				f1.add(params, 'resetPosition').name('Reset Position');
 				f1.open();
-				var f2 = gui.addFolder('Color');
+				var f2 = gui.addFolder('Colors');
 				f2.addColor(params, 'colorAmbient').name('Ambient').listen().onChange( valuesChanger );
 				f2.addColor(params, 'colorTop').name('Top').listen().onChange( valuesChanger );
 				f2.addColor(params, 'colorBack').name('Background').listen().onChange( valuesChanger );
+				f2.add(params, 'bIndexColors').name('Indexed').listen().onChange( valuesChanger );
 				f2.open();
 
 				valuesChanger();
