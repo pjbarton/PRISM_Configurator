@@ -33,10 +33,11 @@
 	</head>
 	<body>
 		<link rel="icon" href="favicon.ico"/>
-		<div id="info">
-			<p style="color:#A0A0A0; font-size:150%">PRISM Configurator</p>
+		<div id="info" style="">
+			<p style="color:#A0A0A0; font-size:130%;margin:5px;padding:0;border:0">PRISM Configurator</p>
+			Mask Code (48 Hex): <input type="text" name="textbox1" id="txtboxMask" size="60" style="font-size: 11px; border:0; background-color:#404040; color:#A0A0A0; padding:5px; text-align: center"/> 
 		</div>
-
+		
 		<script type="text/javascript" src="js/three.min.js"></script>
 		<script type="text/javascript" src="js/PLYloader.js"></script>
 		<script type="text/javascript" src="js/Detector.js"></script>
@@ -49,52 +50,92 @@
 			window.addEventListener( 'resize', onWindowResize, false );
 			window.addEventListener( 'load', init );
 
+			var input = document.querySelector('input');
+			input.addEventListener('input', function()
+			{
+				if ( input.value.trim().replace(/ /g,'').length == 48 ) {
+					params.mask = input.value;
+			    	console.log('input changed to: ', input.value);
+			    	document.getElementById('txtboxMask').style.border = "0px"
+			    	loadPLY(params.mask.hex2bin());
+			    }
+			    else {
+			    	document.getElementById('txtboxMask').style.border = "2px solid red"
+			    }
+
+			});
+
+			var gl;
 			var container, stats;
-			var camera, cameraTarget, scene, renderer, controls, lightTop, lightAmbient, mesh;
+			var camera, cameraTarget, scene, renderer, controls, lightTop, lightAmbient, mesh, pixels;
 			var params = {
-				mask: 'FFFFFFFF FFFFFFFF FFFFFFFF FFFFFFFF FFFFFFFF FFFFFFFF',
-				//mask: '21524FA4 78BD521A B4479132 2B545C97 9943A029 753854BB',
+
+				//mask:   'C0000000 00000000 00000000 00000000 00000000 00000003',
+				//mask: '00000001 00000001 00000001 00000001 00000001 00000001',
+				//mask: 'FFFFFFFF FFFFFFFF FFFFFFFF FFFFFFFF FFFFFFFF FFFFFFFF',
+				mask: '21524FA4 78BD521A B4479132 2B545C97 9943A029 753854BB',
 				angTheta: 0.0,
 				angPhi: Math.PI/2,
 				rotateSpeed: 0.4,
 				autorotate: true,
-				colorAmbient: "#657ff7",
-				colorTop: "#e8e864",
-				colorBack: "#404040",
+				colorAmbient: 0x657ff7,
+				colorTop: 0xe8e864,
+				colorBack: 0x000000,
 				resetPosition: function() { 
 					controls.reset(); 
 				},
 				showAxes: false,
-				bIndexColors: false
+				bIndexColors: true,
+				bInner: true,
+				bOuter: true,
+				bSides: true
 			};
+			var w = window.innerWidth;
+			var h = window.innerHeight
+			var rvals = new Array(192);
+			var gvals = new Array(192);
+			var bvals = new Array(192);
 
 			function loadPLY(mask){
 				var loader = new THREE.PLYLoader();
+				var colorInner, colorOuter, colorSides;
 				loader.load( 'models/PRISM-1_0_quad.ply', function ( geometry ) {
 					
 					geometry.computeFaceNormals();
 
-					if (params.bIndexColors)
-						var material = new THREE.MeshBasicMaterial ({color:0xffffff, vertexColors:THREE.FaceColors});
+					if ( params.bIndexColors )
+						var material = new THREE.MeshBasicMaterial ({ color: 0xFFFFFF, vertexColors:THREE.FaceColors });
 					else
 						var material = new THREE.MeshStandardMaterial;
 					mesh = new THREE.Mesh( geometry, material );
 					
 					var faceID = 0;
-					for (var i = mesh.geometry.faces.length - 12; i >= 0; i -= 12) {
-						if (params.bIndexColors) {
-							mesh.geometry.faces[i+0].color = new THREE.Color(Math.round(faceID) / 256, 0, 0);
-							mesh.geometry.faces[i+1].color = new THREE.Color(Math.round(faceID) / 256, 0, 0);
-							mesh.geometry.faces[i+2].color = new THREE.Color(0,Math.round(faceID) / 256, 0);
-							mesh.geometry.faces[i+3].color = new THREE.Color(0,Math.round(faceID) / 256, 0);
+
+					var geom2 = new THREE.Geometry();
+
+					for ( var i = 0; i <= mesh.geometry.faces.length - 12; i += 12) {  // 12 faces per detector
+						if ( mask[ 191 - faceID ] == '1') {
+							colorInner = new THREE.Color(params.bInner ? ((faceID+1) / 255): 0, 0, 0);
+							colorOuter = new THREE.Color(0, params.bOuter ? (faceID+1) / 255: 0, 0);
+							colorSides = new THREE.Color(0, 0, params.bSides ? (faceID+1) / 255: 0);						
+							mesh.geometry.faces[i+0].color = colorInner;
+							mesh.geometry.faces[i+1].color = colorInner;
+							mesh.geometry.faces[i+2].color = colorOuter;
+							mesh.geometry.faces[i+3].color = colorOuter;
+							geom2.faces.push( mesh.geometry.faces[i+0] )
+							geom2.faces.push( mesh.geometry.faces[i+1] )
+							geom2.faces.push( mesh.geometry.faces[i+2] )
+							geom2.faces.push( mesh.geometry.faces[i+3] )
+							for (var j = 4; j < 12; j++) {
+								mesh.geometry.faces[i+j].color = colorSides;
+								geom2.faces.push( mesh.geometry.faces[i+j] );
+							}
 						}
-						for (var j = 4; j < 12; j++)
-							mesh.geometry.faces[i+j].color = new THREE.Color(0,0,Math.round(faceID) / 256);
-						if ( mask[faceID] == '0' )
-							mesh.geometry.faces.splice(-i,12);
 						faceID++;
 					}
+					mesh.geometry.faces = geom2.faces;
 
+					scene.children = scene.children.filter(function(element) { return element.type != 'Mesh' } ); // remove all Mesh
 					scene.add( mesh );
 				} );
 			}
@@ -105,7 +146,7 @@
 				var lookupTable = {
 			        '0': '0000', '1': '0001', '2': '0010', '3': '0011', '4': '0100', '5': '0101', '6': '0110', '7': '0111', '8': '1000', '9': '1001',
 			        'A': '1010', 'B': '1011', 'C': '1100', 'D': '1101', 'E': '1110', 'F': '1111' };
-			    for (var i = 0; i < s.length; i++) {
+			    for ( var i = 0; i < s.length; i++ ) {
 			        if ( lookupTable.hasOwnProperty(s[i]) ) 
 			            sReturn += lookupTable[s[i]];
 			    }
@@ -120,25 +161,29 @@
 				container.appendChild( stats.dom );
 				
 				// Renderer
-				renderer = new THREE.WebGLRenderer( { antialias: true } );
+				renderer = new THREE.WebGLRenderer( { antialias: false } );
 				renderer.setPixelRatio( window.devicePixelRatio );
-				renderer.setSize( window.innerWidth, window.innerHeight );
-				renderer.gammaInput = true;
-				renderer.gammaOutput = true;
+				renderer.setSize( w, h );
+				renderer.gammaInput = false;
+				renderer.gammaOutput = false;
 				container.appendChild( renderer.domElement );
-				
+				renderer.auto
+				gl = renderer.context;
+
 				// Camera / Scene
-				meshWidth = 200 * window.innerWidth / window.innerHeight;
+				meshWidth = 200 * w / h;
 				meshHeight = 200 ;
-				camera = new THREE.OrthographicCamera( meshWidth / - 2, meshWidth / 2, meshHeight / 2, meshHeight / - 2, 1, 200 );
+				camera = new THREE.OrthographicCamera( meshWidth / - 2, meshWidth / 2, meshHeight / 2, meshHeight / - 2, -2000, 2000 );
 				camera.position.z = 100;
-				camera.aspect = window.innerWidth / window.innerHeight;
+				camera.aspect = w / h;
 				camera.updateProjectionMatrix();
 				scene = new THREE.Scene();
+				//scene.fog = new THREE.FogExp2( 0xefd1b5, 2.5 );
+				pixels = new self.Uint8Array(Math.round( w * h ) * 4); 
 
 				// Controls
 				controls = new THREE.OrbitControls( camera, renderer.domElement );
-				controls.enableDamping = true;
+				controls.enableDamping = false;
 				controls.dampingFactor = 0.25;
 				controls.enableZoom = true;
 				controls.enablePan = false;
@@ -152,18 +197,24 @@
 				// Lights
 				lightTop = new THREE.HemisphereLight( 0xffffff, 0x000000 );
 				lightAmbient = new THREE.AmbientLight( 0x8000A0 );
+				var directionalLight = new THREE.DirectionalLight( 0xffffff, 1.0 );
+				directionalLight.position.set( 0, 1, 0 );
+				
 				scene.add( lightTop );
 				scene.add( lightAmbient );
+				//scene.add( directionalLight );
 
 				// GUI
-				var valuesChanger = function() {
-					scene.remove( mesh );
+				this.valuesChanger = function() {
+					//scene.remove( mesh );
+					document.getElementById('txtboxMask').value = params.mask;
 					loadPLY(params.mask.hex2bin());
 					controls.autoRotate = params.autorotate;
 					controls.autoRotateSpeed = params.rotateSpeed;
-					lightTop.color.setHex( params.colorTop.replace( '#','0x' ) );
-					lightAmbient.color.setHex( params.colorAmbient.replace( '#','0x' ) );
+					lightTop.color.setHex( params.colorTop );
+					lightAmbient.color.setHex( params.colorAmbient);
 					renderer.setClearColor( params.colorBack, 1);
+					
 
 				}
 				var gui = new dat.GUI();	
@@ -172,10 +223,10 @@
 					Random: '21524FA4 78BD521A B4479132 2B545C97 9943A029 753854BB'
 				}).name('Mask').listen().onChange( valuesChanger );
 				var f1 = gui.addFolder('Rotation');
-				f1.add(params, 'angTheta', -Math.PI, Math.PI).name('( Theta )').listen().onChange( valuesChanger ).step(0.1);
+				f1.add(params, 'angTheta', -Math.PI, Math.PI).name('( Theta )').listen().onChange( valuesChanger ).step(0.01);
 				f1.add(params, 'angPhi', 0, Math.PI).name('( Phi )').listen().onChange( valuesChanger ).step(0.01);
+				f1.add(params, 'rotateSpeed',0.0,5).listen().onChange( valuesChanger ).step(0.01);
 				f1.add(params, 'autorotate').listen().onChange( valuesChanger );
-				f1.add(params, 'rotateSpeed',0.0,2).listen().onChange( valuesChanger ).step(0.01);
 				f1.add(params, 'resetPosition').name('Reset Position');
 				f1.open();
 				var f2 = gui.addFolder('Colors');
@@ -183,7 +234,13 @@
 				f2.addColor(params, 'colorTop').name('Top').listen().onChange( valuesChanger );
 				f2.addColor(params, 'colorBack').name('Background').listen().onChange( valuesChanger );
 				f2.add(params, 'bIndexColors').name('Indexed').listen().onChange( valuesChanger );
+				f2.add(params, 'bInner').name('Inner').listen().onChange( valuesChanger );
+				f2.add(params, 'bOuter').name('Outer').listen().onChange( valuesChanger );
+				f2.add(params, 'bSides').name('Sides').listen().onChange( valuesChanger );
 				f2.open();
+
+
+				//hisPanel();
 
 				valuesChanger();
 				onWindowResize();
@@ -191,8 +248,9 @@
 			}
 
 			function onWindowResize() {
-
-				meshWidth = 200 * window.innerWidth / window.innerHeight;
+				w = window.innerWidth;
+				h = window.innerHeight
+				meshWidth = 200 * w / h;
 				meshHeight = 200 ;
 				camera.left = meshWidth / - 2;
 				camera.right = meshWidth / 2;
@@ -200,7 +258,7 @@
 				camera.bottom = meshHeight / - 2;
 				camera.updateProjectionMatrix();
 				
-				renderer.setSize( window.innerWidth, window.innerHeight );
+				renderer.setSize( w, h );
 			}
 
 			function animate() {
@@ -212,10 +270,68 @@
 				stats.update();
 				render();
 			}
+				//var m = new THREE.Matrix4;
 
 			function render() {
-
 				renderer.render( scene, camera );
+
+				
+				if ( params.bIndexColors ) { //&& camera.zoom <= 1.0 ) {
+					
+					
+					gl.readPixels(
+						Math.round( w/2 - w/2 * camera.zoom ), 
+						Math.round( h/2 - h/2 * camera.zoom ), 
+						Math.round( w/2 + w/2 * camera.zoom ), 
+						Math.round( h/2 + h/2 * camera.zoom ), 
+						gl.RGBA, gl.UNSIGNED_BYTE, pixels
+					);
+					rvals.fill(0);
+					gvals.fill(0);
+					bvals.fill(0);
+					for ( var i = 0; i < (w * h) * 4; i += 8*4 ) { // every nth pixel
+								rvals[ pixels[ i + 0 ] ]++;  // 0-bin is for background; 1-bin is for detector 1
+								gvals[ pixels[ i + 1 ] ]++;
+								bvals[ pixels[ i + 2 ] ]++;
+					}
+					
+					var x0 = 100 * camera.aspect;
+					var y0 = 100;
+					var dx = 200 / w * camera.aspect;
+
+					function addHist( vals, color, xoffset ) {
+						var geometry = new THREE.Geometry();
+						var material = new THREE.LineBasicMaterial( { color: color } );
+						
+						var x0 = w/2 * dx;
+						var y0 = 100;
+						for ( var i = 1; i < 192+1; i++ ) {
+							geometry.vertices.push(
+								new THREE.Vector3( i * dx - x0 + xoffset, -y0, 80)
+								.multiplyScalar( 1 / camera.zoom ).applyEuler( camera.rotation ),
+								new THREE.Vector3( i * dx - x0 + xoffset, vals[i] / ( camera.zoom * camera.zoom ) / 8 - y0, 80)
+								.multiplyScalar( 1 / camera.zoom ).applyEuler( camera.rotation )
+							);
+						}
+						scene.add( new THREE.LineSegments( geometry, material ) );
+					}
+
+					scene.children = scene.children.filter(function(element) { return element.type != 'LineSegments' } );
+					// if ( scene.children[ scene.children.length - 1 ].type == 'LineSegments' )
+					// 	scene.children.splice(-3,3);
+					if ( scene.children.length > 2 ) {
+						addHist( rvals, 0xff0000, 0 );
+						addHist( gvals, 0x00ff00, 192 * dx );
+						addHist( bvals, 0x0000ff, 2 * 192 * dx );
+					}
+
+					renderer.render( scene, camera );
+				}
+				else {
+					scene.children = scene.children.filter(function(element) { return element.type != 'LineSegments' } );
+					// if ( scene.children[ scene.children.length - 1 ].type == 'LineSegments' )
+					// 	scene.children.splice(-3,3);
+				}
 			}
 		</script>
 	</body>
