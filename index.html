@@ -95,6 +95,7 @@
 			var rvals = new Array(192);
 			var gvals = new Array(192);
 			var bvals = new Array(192);
+			var decimateHist = w / 50;
 
 			function loadPLY(mask){
 				var loader = new THREE.PLYLoader();
@@ -250,6 +251,7 @@
 			function onWindowResize() {
 				w = window.innerWidth;
 				h = window.innerHeight
+				decimateHist = Math.round( w / 50 );
 				meshWidth = 200 * w / h;
 				meshHeight = 200 ;
 				camera.left = meshWidth / - 2;
@@ -289,21 +291,21 @@
 					rvals.fill(0);
 					gvals.fill(0);
 					bvals.fill(0);
-					for ( var i = 0; i < (w * h) * 4; i += 8*4 ) { // every nth pixel
+					for ( var i = 0; i < (w * h) * 4; i += decimateHist*4 ) { // every nth pixel
 								rvals[ pixels[ i + 0 ] ]++;  // 0-bin is for background; 1-bin is for detector 1
 								gvals[ pixels[ i + 1 ] ]++;
 								bvals[ pixels[ i + 2 ] ]++;
 					}
 					
-					var x0 = 100 * camera.aspect;
-					var y0 = 100;
-					var dx = 200 / w * camera.aspect;
+					//var x0 = 100 * camera.aspect;
+					//var y0 = 100;
+					var dx = 200 / w * w/h;
 
 					function addHist( vals, color, xoffset ) {
 						var geometry = new THREE.Geometry();
 						var material = new THREE.LineBasicMaterial( { color: color } );
 						
-						var x0 = w/2 * dx;
+						var x0 = 100 * w/h;
 						var y0 = 100;
 						for ( var i = 1; i < 192+1; i++ ) {
 							geometry.vertices.push(
