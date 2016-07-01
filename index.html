@@ -293,7 +293,7 @@
 				}).name('Mask').listen().onChange( valuesChanger );
 				gui.add(params, 'showAxes').name('Show Axes').listen().onChange( addAxes );
 				var f1 = gui.addFolder('Rotation');
-				f1.add(params, 'angTheta', -90, 90).name('( Theta )').listen().onChange( valuesChanger ).step(1);
+				f1.add(params, 'angTheta', -180, 180).name('( Theta )').listen().onChange( valuesChanger ).step(1);
 				f1.add(params, 'angPhi', 0, 180).name('( Phi )').listen().onChange( valuesChanger ).step(1);
 				f1.add(params, 'rotateSpeed',0.0,5).listen().onChange( valuesChanger ).step(0.01);
 				f1.add(params, 'autorotate').listen().onChange( valuesChanger );
